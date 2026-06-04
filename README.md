@@ -36,17 +36,36 @@ pip install .
     "email-server": {
       "command": "python3",
       "args": [
-        "/此处替换为你的实际绝对路径/imap-smtp-mcp/server.py"
+        "/Users/你的用户名/Code/imap-smtp-mcp/server.py"
       ]
     }
   }
 }
 ```
+*(注：Windows 用户请使用如 `C:\\Code\\imap-smtp-mcp\\server.py` 的绝对路径。如果你使用了虚拟环境，也可将 `"command"` 修改为该虚拟环境内 `python` 执行文件的绝对路径。)*
 
 #### 选项 B：其他图形化客户端（如 Enchanté 等）
 在添加 MCP Server 的界面中填入：
 - **Name**: `Email Server` (或任意自定义名称)
-- **Command**: `python3`
-- **Args**: `[此处填写 server.py 的绝对路径]`
+- **Command**: `python3` (或虚拟环境中 python 的绝对路径)
+- **Args**: `/Users/你的用户名/Code/imap-smtp-mcp/server.py`
 
-启动后，LLM 即可自动感知并调用上述四个工具进行收发邮件。
+### 3. AI 对话 / Prompt 使用示例（必看 🌟）
+
+本项目为了保障最高级别的隐私与安全，**未在本地保留任何账号配置文件**（无状态设计）。所有的登录与连接信息均由 LLM 动态传入。
+
+因此，为了让 AI 助手成功连接到你的邮箱，你需要**在对话框里，将邮箱的基础配置信息通过自然语言直接告诉它**。
+
+**👉 你可以直接复制以下 Prompt 模板发给 AI：**
+> "你现在是我的私人邮件管家，请使用以下配置信息帮我处理邮件：
+> - 邮箱账号：your_email@example.com
+> - 授权码/密码：your_app_password
+> - IMAP 服务器：imap.example.com
+> - SMTP 服务器：smtp.example.com
+> 
+> 现在，请帮我检查一下「收件箱」里今天最新的 3 封邮件，并用中文帮我总结。如果没有新邮件，请帮我起草一封致谢信存入「草稿箱」。"
+
+*💡 安全建议：强烈推荐在各大邮箱提供商（如 QQ邮箱、网易邮箱、Gmail、Outlook 等）的账户设置中，生成并使用**第三方应用授权码**来代替你的主登录密码。*
+
+---
+配置完成并发送上述提示词后，LLM 即可自动感知并调用上述四个工具进行顺畅的收发邮件操作！
