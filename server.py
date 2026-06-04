@@ -3,6 +3,7 @@ import os
 import json
 import imaplib
 import smtplib
+import socket
 import email
 from email.header import decode_header
 from email.mime.text import MIMEText
@@ -12,10 +13,18 @@ import time
 import logging
 
 try:
+    from bs4 import BeautifulSoup
+except ImportError:
+    BeautifulSoup = None
+
+try:
     from mcp.server.fastmcp import FastMCP
 except ImportError:
     print("错误: 缺少 mcp 依赖库。请先运行 'pip install mcp'")
     exit(1)
+
+# 设置全局网络超时时间（防止无响应卡死 LLM）
+socket.setdefaulttimeout(15)
 
 mcp = FastMCP("Email Server")
 
@@ -39,6 +48,21 @@ def decode_str(s):
     else:
         return s
 
+def strip_html(html_content):
+    """剔除 HTML 标签，提取纯文本，节省 LLM Token"""
+    if not html_content:
+        return ""
+    if BeautifulSoup:
+        soup = BeautifulSoup(html_content, "html.parser")
+        return soup.get_text(separator='\n', strip=True)
+    else:
+        import re
+        text = re.sub(r'<style.*?>.*?</style>', '', html_content, flags=re.IGNORECASE | re.DOTALL)
+        text = re.sub(r'<script.*?>.*?</script>', '', text, flags=re.IGNORECASE | re.DOTALL)
+        text = re.sub(r'<[^>]+>', '\n', text)
+        text = re.sub(r'\n\s*\n', '\n', text)
+        return text.strip()
+
 def get_email_body(msg):
     body = ""
     if msg.is_multipart():
@@ -50,47 +74,91 @@ def get_email_body(msg):
                 try:
                     charset = part.get_content_charset() or 'utf-8'
                     body = part.get_payload(decode=True).decode(charset, errors='ignore')
-                    break
+                    return body.strip() # 优先返回纯文本
                 except Exception as e:
                     logging.warning(f"Error decoding plain text: {e}")
             elif content_type == "text/html" and "attachment" not in content_disposition and not body:
                 try:
                     charset = part.get_content_charset() or 'utf-8'
-                    body = part.get_payload(decode=True).decode(charset, errors='ignore')
+                    html_body = part.get_payload(decode=True).decode(charset, errors='ignore')
+                    body = strip_html(html_body)
                 except Exception as e:
                     logging.warning(f"Error decoding html: {e}")
     else:
         try:
             charset = msg.get_content_charset() or 'utf-8'
-            body = msg.get_payload(decode=True).decode(charset, errors='ignore')
+            raw_body = msg.get_payload(decode=True).decode(charset, errors='ignore')
+            if msg.get_content_type() == "text/html":
+                body = strip_html(raw_body)
+            else:
+                body = raw_body
         except Exception as e:
             logging.warning(f"Error decoding body: {e}")
     return body.strip()
 
+# 文件夹映射（适配常见的中文名称和 UTF-7 IMAP 编码）
+FOLDER_MAP = {
+    "收件箱": "INBOX",
+    "草稿箱": "Drafts",
+    "已发送": "Sent",
+    "已删除": "Deleted Messages",
+    "垃圾邮件": "Junk",
+    "网易草稿箱": "&g0l6P3ux-",
+    "网易已发送": "&bUuD7X-k-",
+    "网易垃圾邮件": "&V4NXPp/D-",
+    "网易已删除": "&XfJT0ZAB-"
+}
+
+def map_folder(folder_name):
+    return FOLDER_MAP.get(folder_name, folder_name)
+
+def handle_email_exception(e):
+    if isinstance(e, imaplib.IMAP4.error):
+        return {"error": f"IMAP 认证或操作失败: {str(e)}。请检查账号、密码/授权码及服务器地址。"}
+    elif isinstance(e, smtplib.SMTPAuthenticationError):
+        return {"error": f"SMTP 认证失败: {str(e)}。请检查账号和密码/授权码。"}
+    elif isinstance(e, (socket.timeout, TimeoutError)):
+        return {"error": "连接服务器超时。请检查网络或确认端口（如 993/465/587）是否受限。"}
+    elif isinstance(e, ConnectionRefusedError):
+        return {"error": "连接被拒绝。请检查服务器地址或端口配置。"}
+    else:
+         return {"error": f"发生意外错误: {str(e)}"}
+
 # -----------------
-# 工具 1: Fetch Emails
+# 工具 1: List Emails
 # -----------------
 @mcp.tool()
-def fetch_emails(username: str, password: str, imap_server: str, limit: int = 5, folder: str = "inbox") -> str:
-    """获取邮箱文件夹里的最新邮件列表"""
+def list_emails(username: str, password: str, imap_server: str, imap_port: int = 993, limit: int = 5, folder: str = "INBOX") -> str:
+    """
+    获取邮箱文件夹里的最新邮件列表（仅含标题、发件人等元信息，不含正文）。
+    参数:
+    - folder: 文件夹名称，支持 "INBOX", "收件箱", "已发送", "草稿箱" 等。
+    - limit: 获取的邮件数量。
+    - imap_port: 默认为 993 (SSL)。
+    """
     try:
-        mail = imaplib.IMAP4_SSL(imap_server, 993)
+        folder_mapped = map_folder(folder)
+        mail = imaplib.IMAP4_SSL(imap_server, imap_port)
         mail.login(username, password)
-        mail.select(f'"{folder}"')
         
+        status, response = mail.select(f'"{folder_mapped}"')
+        if status != "OK":
+            return json.dumps({"error": f"无法选择文件夹 '{folder}' (尝试映射为 '{folder_mapped}')。"}, ensure_ascii=False)
+            
         status, messages = mail.search(None, "ALL")
         if status != "OK":
-            return json.dumps({"error": "无法获取邮件列表"}, ensure_ascii=False)
+            return json.dumps({"error": "无法搜索邮件列表"}, ensure_ascii=False)
             
         email_ids = messages[0].split()
         if not email_ids:
-             return json.dumps({"status": "success", "emails": [], "message": "邮箱是空的"}, ensure_ascii=False)
+             return json.dumps({"status": "success", "emails": [], "message": f"文件夹 '{folder}' 是空的"}, ensure_ascii=False)
              
         latest_email_ids = email_ids[-limit:]
         results = []
         
         for e_id in reversed(latest_email_ids):
-            status, msg_data = mail.fetch(e_id, "(RFC822)")
+            # 优化点：只拉取 HEADER 信息，不下载整个邮件内容
+            status, msg_data = mail.fetch(e_id, "(BODY.PEEK[HEADER])")
             if status != "OK":
                 continue
                 
@@ -101,29 +169,75 @@ def fetch_emails(username: str, password: str, imap_server: str, limit: int = 5,
                         subject = decode_str(msg.get("Subject", ""))
                         sender = decode_str(msg.get("From", ""))
                         date = decode_str(msg.get("Date", ""))
-                        body = get_email_body(msg)
                         
                         results.append({
                             "id": e_id.decode(),
                             "subject": subject,
                             "from": sender,
-                            "date": date,
-                            "body": body[:1000] + ("..." if len(body) > 1000 else "")
+                            "date": date
                         })
                     except Exception as parse_e:
-                        logging.warning(f"Failed to parse email {e_id}: {parse_e}")
+                        logging.warning(f"Failed to parse email header {e_id}: {parse_e}")
                         
         mail.logout()
         return json.dumps({"status": "success", "emails": results}, ensure_ascii=False, indent=2)
     except Exception as e:
-        return json.dumps({"error": str(e)}, ensure_ascii=False)
+        return json.dumps(handle_email_exception(e), ensure_ascii=False)
 
 # -----------------
-# 工具 2: Send Email
+# 工具 2: Read Email
 # -----------------
 @mcp.tool()
-def send_email(username: str, password: str, smtp_server: str, to_addrs: str, subject: str, body: str) -> str:
-    """通过企业邮箱发送一封纯文本邮件。参数 to_addrs 支持多个邮箱用逗号分隔。"""
+def read_email(username: str, password: str, imap_server: str, email_id: str, imap_port: int = 993, folder: str = "INBOX") -> str:
+    """
+    根据 list_emails 提供的 email_id，读取该封邮件的完整正文内容。
+    """
+    try:
+        folder_mapped = map_folder(folder)
+        mail = imaplib.IMAP4_SSL(imap_server, imap_port)
+        mail.login(username, password)
+        mail.select(f'"{folder_mapped}"')
+        
+        status, msg_data = mail.fetch(email_id.encode(), "(RFC822)")
+        if status != "OK" or not msg_data or msg_data[0] is None:
+            return json.dumps({"error": f"无法获取 ID 为 {email_id} 的邮件。"}, ensure_ascii=False)
+            
+        response_part = msg_data[0]
+        if isinstance(response_part, tuple):
+            msg = email.message_from_bytes(response_part[1])
+            subject = decode_str(msg.get("Subject", ""))
+            sender = decode_str(msg.get("From", ""))
+            date = decode_str(msg.get("Date", ""))
+            body = get_email_body(msg)
+            
+            mail.logout()
+            return json.dumps({
+                "status": "success",
+                "email": {
+                    "id": email_id,
+                    "subject": subject,
+                    "from": sender,
+                    "date": date,
+                    "body": body
+                }
+            }, ensure_ascii=False, indent=2)
+            
+        mail.logout()
+        return json.dumps({"error": "解析邮件失败。"}, ensure_ascii=False)
+    except Exception as e:
+        return json.dumps(handle_email_exception(e), ensure_ascii=False)
+
+# -----------------
+# 工具 3: Send Email
+# -----------------
+@mcp.tool()
+def send_email(username: str, password: str, smtp_server: str, to_addrs: str, subject: str, body: str, smtp_port: int = 465) -> str:
+    """
+    通过企业邮箱发送一封纯文本邮件。
+    参数:
+    - to_addrs: 收件人邮箱，支持多个用逗号分隔。
+    - smtp_port: SMTP端口，常用 465 (隐式 SSL) 或 587 (STARTTLS)。
+    """
     try:
         msg = MIMEMultipart()
         msg['From'] = username
@@ -131,10 +245,15 @@ def send_email(username: str, password: str, smtp_server: str, to_addrs: str, su
         msg['Subject'] = subject
         msg.attach(MIMEText(body, 'plain', 'utf-8'))
 
-        server = smtplib.SMTP_SSL(smtp_server, 465)
+        if smtp_port in [587, 25]:
+            server = smtplib.SMTP(smtp_server, smtp_port)
+            server.starttls()
+        else:
+            server = smtplib.SMTP_SSL(smtp_server, smtp_port)
+            
         server.login(username, password)
         
-        recipients = [email.strip() for email in to_addrs.split(',')]
+        recipients = [e.strip() for e in to_addrs.split(',') if e.strip()]
         server.send_message(msg, from_addr=username, to_addrs=recipients)
         server.quit()
         
@@ -145,14 +264,16 @@ def send_email(username: str, password: str, smtp_server: str, to_addrs: str, su
             "subject": subject
         }, ensure_ascii=False, indent=2)
     except Exception as e:
-        return json.dumps({"error": str(e)}, ensure_ascii=False)
+        return json.dumps(handle_email_exception(e), ensure_ascii=False)
 
 # -----------------
-# 工具 3: Save Draft
+# 工具 4: Save Draft
 # -----------------
 @mcp.tool()
-def save_draft(username: str, password: str, imap_server: str, subject: str, body: str, to_addrs: str = "") -> str:
-    """将一封草稿邮件静默保存到邮箱的草稿箱文件夹中。"""
+def save_draft(username: str, password: str, imap_server: str, subject: str, body: str, to_addrs: str = "", imap_port: int = 993) -> str:
+    """
+    将一封草稿邮件静默保存到邮箱的草稿箱文件夹中。
+    """
     try:
         msg = MIMEMultipart()
         msg['From'] = username
@@ -162,27 +283,37 @@ def save_draft(username: str, password: str, imap_server: str, subject: str, bod
         msg['Date'] = formatdate(localtime=True)
         msg.attach(MIMEText(body, 'plain', 'utf-8'))
 
-        mail = imaplib.IMAP4_SSL(imap_server, 993)
+        mail = imaplib.IMAP4_SSL(imap_server, imap_port)
         mail.login(username, password)
         
         msg_bytes = msg.as_bytes()
         internal_date = imaplib.Time2Internaldate(time.time())
         
-        status, response = mail.append("Drafts", '(\\Draft)', internal_date, msg_bytes)
-        if status != 'OK':
-            status, response = mail.append("&g0l6P3ux-", '(\\Draft)', internal_date, msg_bytes)
-            if status != 'OK':
-                raise Exception(f"Failed to append to draft folder: {response}")
+        draft_folders = ['"Drafts"', '"&g0l6P3ux-"', '"草稿箱"', '"INBOX.Drafts"']
+        success = False
+        error_msg = ""
+        
+        for f in draft_folders:
+            status, response = mail.append(f, '(\\Draft)', internal_date, msg_bytes)
+            if status == 'OK':
+                success = True
+                break
+            else:
+                error_msg = response
 
         mail.logout()
         
-        return json.dumps({
-            "status": "success", 
-            "message": "邮件已成功保存到草稿箱",
-            "subject": subject
-        }, ensure_ascii=False, indent=2)
+        if success:
+            return json.dumps({
+                "status": "success", 
+                "message": "邮件已成功保存到草稿箱",
+                "subject": subject
+            }, ensure_ascii=False, indent=2)
+        else:
+            return json.dumps({"error": f"无法存入草稿箱: {error_msg}"}, ensure_ascii=False)
+            
     except Exception as e:
-        return json.dumps({"error": str(e)}, ensure_ascii=False)
+        return json.dumps(handle_email_exception(e), ensure_ascii=False)
 
 if __name__ == "__main__":
     mcp.run()

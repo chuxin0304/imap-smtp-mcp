@@ -10,6 +10,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "mcp",
+    "beautifulsoup4>=4.12.0",
 ]
 
 [project.scripts]
