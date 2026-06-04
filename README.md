@@ -1,40 +1,32 @@
-# 邮箱管理工具 (IMAP/SMTP Email Skill)
+# IMAP/SMTP Email MCP Server
 
-## 技能说明
-本技能用于连接用户的邮箱服务器并进行邮件管理（支持所有标准的 IMAP/SMTP 协议），它既可以通过命令行脚本运行，也被封装成了标准的 MCP 服务器。
-支持以下功能：
-1. **获取邮件**：获取最新邮件列表，支持指定读取的邮件数量及文件夹名称。
-2. **发送邮件**：通过 SMTP 发送简单纯文本邮件。
-3. **保存草稿**：通过 IMAP 保存邮件到草稿箱。
+## 简介
+这是一个标准的 Model Context Protocol (MCP) 服务器，用于连接用户的邮箱并进行邮件管理。支持所有标准的 IMAP/SMTP 协议。
 
-所有鉴权信息（账号、密码/授权码、服务器地址）均通过参数直接传入，不依赖本地配置文件，更加安全灵活。
+提供了以下核心 MCP Tools 供 LLM 调用：
+1. **`fetch_emails`**: 获取最新邮件列表，支持指定读取的邮件数量及文件夹名称。
+2. **`send_email`**: 通过 SMTP 发送简单纯文本邮件。
+3. **`save_draft`**: 通过 IMAP 保存邮件到草稿箱。
 
-## 使用说明 (命令行脚本)
+*注：所有鉴权信息（账号、密码/授权码、服务器地址）均由 LLM 在调用 Tool 时通过参数传入，无需本地配置文件，确保数据安全。*
 
-### 1. 接收邮件
+## 项目结构
+本仓库符合标准的 Python MCP 项目规范：
+- `server.py`：MCP 服务器的主入口逻辑。
+- `pyproject.toml` / `requirements.txt`：项目依赖管理配置。
+
+## 快速运行与使用
+
+### 1. 安装依赖
 ```bash
-python3 ~/.agents/skills/fetch-126-email/scripts/fetch_emails.py --username "your@email.com" --password "auth_code" --imap_server "imap.example.com" --limit 5
+pip install -r requirements.txt
+# 或者
+pip install .
 ```
 
-### 2. 发送邮件
-```bash
-python3 ~/.agents/skills/fetch-126-email/scripts/send_email.py --username "your@email.com" --password "auth_code" --smtp_server "smtp.example.com" --to "user@example.com" --subject "主题" --body "正文"
-```
+### 2. 在支持 MCP 的客户端（如 Enchanté, Claude Desktop）中配置
+- **Name**: `Email Server` (或任意名称)
+- **Command**: `python3`
+- **Args**: `[此处填写你的绝对路径]/server.py`
 
-### 3. 保存邮件草稿
-```bash
-python3 ~/.agents/skills/fetch-126-email/scripts/save_draft.py --username "your@email.com" --password "auth_code" --imap_server "imap.example.com" --to "user@example.com" --subject "主题" --body "正文"
-```
-
-### 4. 使用标准英文邮件模板 (Templates)
-我们在 `templates.json` 中内置了一些标准的英文商务邮件模板（包含会议邀请、跟进、进度汇报、感谢信等）。
-当用户希望“发一封标准英文邮件”或“使用某某模板发送邮件”时：
-1. 你可以先读取 `~/.agents/skills/fetch-126-email/templates.json` 获取对应的模板结构。
-2. 智能填充模板中的占位符（如 `{name}`, `{topic}`, `{sender_name}` 等）。
-3. 使用拼接好之后的英文内容发送邮件或存为草稿。
-
-## 使用说明 (MCP Server)
-本技能包含一个标准的 FastMCP 服务端 `server.py`。
-安装依赖：`pip install mcp`
-注册为 MCP 时，Command 填写 `python3`，Args 填写 `~/.agents/skills/fetch-126-email/server.py`。
-启动后，所有 LLM 都可以直接调用 `fetch_emails`, `send_email`, `save_draft` 工具，直接通过参数传入认证信息即可使用。
+启动后，LLM 即可自动感知并调用上述三个工具进行收发邮件。
