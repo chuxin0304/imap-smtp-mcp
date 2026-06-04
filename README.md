@@ -9,7 +9,7 @@
 3. **`send_email`**: 通过 SMTP 发送简单纯文本邮件（自动适配 465/SSL 和 587/STARTTLS 端口）。
 4. **`save_draft`**: 通过 IMAP 保存邮件到草稿箱，内置常见中英文草稿箱文件夹的自动适配。
 
-*注：所有鉴权信息（账号、密码/授权码、服务器地址）均由 LLM 在调用 Tool 时通过参数传入，无需本地配置文件，确保数据安全。*
+*注：为了隐私与安全，账号配置信息将存储在本地的 `config.json` 中，LLM 仅需传入操作指令，无需知道你的邮箱密码。*
 
 ## 项目结构
 本仓库符合标准的 Python MCP 项目规范：
@@ -25,7 +25,24 @@ pip install -r requirements.txt
 pip install .
 ```
 
-### 2. 在支持 MCP 的客户端中配置
+### 2. 本地账号配置（必看 🌟）
+
+在项目根目录下创建一个名为 `config.json` 的文件，将你的邮箱配置填入其中（请注意不要将此文件提交到公开的 Git 仓库）。
+
+**👉 `config.json` 配置模板：**
+```json
+{
+  "username": "your_email@example.com",
+  "password": "your_app_password",
+  "imap_server": "imap.example.com",
+  "smtp_server": "smtp.example.com",
+  "imap_port": 993,
+  "smtp_port": 465
+}
+```
+*💡 安全建议：强烈推荐在各大邮箱提供商（如 QQ邮箱、网易邮箱、Gmail、Outlook 等）的账户设置中，生成并使用**第三方应用授权码**来代替你的主登录密码。*
+
+### 3. 在支持 MCP 的客户端中配置
 
 #### 选项 A：Claude Desktop 配置文件模板
 如果你使用的是 Claude Desktop，请打开或创建配置文件（通常位于 `~/Library/Application Support/Claude/claude_desktop_config.json` 或 `%APPDATA%\Claude\claude_desktop_config.json`），添加以下内容：
@@ -50,22 +67,7 @@ pip install .
 - **Command**: `python3` (或虚拟环境中 python 的绝对路径)
 - **Args**: `/Users/你的用户名/Code/imap-smtp-mcp/server.py`
 
-### 3. AI 对话 / Prompt 使用示例（必看 🌟）
-
-本项目为了保障最高级别的隐私与安全，**未在本地保留任何账号配置文件**（无状态设计）。所有的登录与连接信息均由 LLM 动态传入。
-
-因此，为了让 AI 助手成功连接到你的邮箱，你需要**在对话框里，将邮箱的基础配置信息通过自然语言直接告诉它**。
-
-**👉 你可以直接复制以下 Prompt 模板发给 AI：**
-> "你现在是我的私人邮件管家，请使用以下配置信息帮我处理邮件：
-> - 邮箱账号：your_email@example.com
-> - 授权码/密码：your_app_password
-> - IMAP 服务器：imap.example.com
-> - SMTP 服务器：smtp.example.com
-> 
-> 现在，请帮我检查一下「收件箱」里今天最新的 3 封邮件，并用中文帮我总结。如果没有新邮件，请帮我起草一封致谢信存入「草稿箱」。"
-
-*💡 安全建议：强烈推荐在各大邮箱提供商（如 QQ邮箱、网易邮箱、Gmail、Outlook 等）的账户设置中，生成并使用**第三方应用授权码**来代替你的主登录密码。*
-
----
-配置完成并发送上述提示词后，LLM 即可自动感知并调用上述四个工具进行顺畅的收发邮件操作！
+### 4. 运行与使用
+配置完成并在客户端加载该 MCP Server 后，你可以直接通过自然语言对 AI 助手说：
+> "帮我检查一下收件箱有没有新邮件"
+> "写一封邮件给 xxx@example.com，告诉他我明天开会，直接发送"

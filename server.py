@@ -24,9 +24,17 @@ except ImportError:
     exit(1)
 
 # 设置全局网络超时时间（防止无响应卡死 LLM）
+# 设置全局网络超时时间（防止无响应卡死 LLM）
 socket.setdefaulttimeout(15)
 
 mcp = FastMCP("Email Server")
+
+def get_config():
+    config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+    if not os.path.exists(config_path):
+        raise FileNotFoundError("未找到配置文件 config.json。请在项目根目录下创建该文件并填入邮箱配置。")
+    with open(config_path, 'r', encoding='utf-8') as f:
+        return json.load(f)
 
 # -----------------
 # 辅助函数: 解码与解析
@@ -128,15 +136,20 @@ def handle_email_exception(e):
 # 工具 1: List Emails
 # -----------------
 @mcp.tool()
-def list_emails(username: str, password: str, imap_server: str, imap_port: int = 993, limit: int = 5, folder: str = "INBOX") -> str:
+def list_emails(limit: int = 5, folder: str = "INBOX") -> str:
     """
     获取邮箱文件夹里的最新邮件列表（仅含标题、发件人等元信息，不含正文）。
     参数:
     - folder: 文件夹名称，支持 "INBOX", "收件箱", "已发送", "草稿箱" 等。
     - limit: 获取的邮件数量。
-    - imap_port: 默认为 993 (SSL)。
     """
     try:
+        cfg = get_config()
+        username = cfg['username']
+        password = cfg['password']
+        imap_server = cfg['imap_server']
+        imap_port = cfg.get('imap_port', 993)
+
         folder_mapped = map_folder(folder)
         mail = imaplib.IMAP4_SSL(imap_server, imap_port)
         mail.login(username, password)
@@ -188,11 +201,17 @@ def list_emails(username: str, password: str, imap_server: str, imap_port: int =
 # 工具 2: Read Email
 # -----------------
 @mcp.tool()
-def read_email(username: str, password: str, imap_server: str, email_id: str, imap_port: int = 993, folder: str = "INBOX") -> str:
+def read_email(email_id: str, folder: str = "INBOX") -> str:
     """
     根据 list_emails 提供的 email_id，读取该封邮件的完整正文内容。
     """
     try:
+        cfg = get_config()
+        username = cfg['username']
+        password = cfg['password']
+        imap_server = cfg['imap_server']
+        imap_port = cfg.get('imap_port', 993)
+
         folder_mapped = map_folder(folder)
         mail = imaplib.IMAP4_SSL(imap_server, imap_port)
         mail.login(username, password)
@@ -231,14 +250,19 @@ def read_email(username: str, password: str, imap_server: str, email_id: str, im
 # 工具 3: Send Email
 # -----------------
 @mcp.tool()
-def send_email(username: str, password: str, smtp_server: str, to_addrs: str, subject: str, body: str, smtp_port: int = 465) -> str:
+def send_email(to_addrs: str, subject: str, body: str) -> str:
     """
-    通过企业邮箱发送一封纯文本邮件。
+    通过邮箱发送一封纯文本邮件。
     参数:
     - to_addrs: 收件人邮箱，支持多个用逗号分隔。
-    - smtp_port: SMTP端口，常用 465 (隐式 SSL) 或 587 (STARTTLS)。
     """
     try:
+        cfg = get_config()
+        username = cfg['username']
+        password = cfg['password']
+        smtp_server = cfg['smtp_server']
+        smtp_port = cfg.get('smtp_port', 465)
+
         msg = MIMEMultipart()
         msg['From'] = username
         msg['To'] = to_addrs
@@ -270,11 +294,17 @@ def send_email(username: str, password: str, smtp_server: str, to_addrs: str, su
 # 工具 4: Save Draft
 # -----------------
 @mcp.tool()
-def save_draft(username: str, password: str, imap_server: str, subject: str, body: str, to_addrs: str = "", imap_port: int = 993) -> str:
+def save_draft(subject: str, body: str, to_addrs: str = "") -> str:
     """
     将一封草稿邮件静默保存到邮箱的草稿箱文件夹中。
     """
     try:
+        cfg = get_config()
+        username = cfg['username']
+        password = cfg['password']
+        imap_server = cfg['imap_server']
+        imap_port = cfg.get('imap_port', 993)
+
         msg = MIMEMultipart()
         msg['From'] = username
         if to_addrs:
