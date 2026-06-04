@@ -25,9 +25,28 @@ pip install -r requirements.txt
 pip install .
 ```
 
-### 2. 在支持 MCP 的客户端（如 Enchanté, Claude Desktop）中配置
-- **Name**: `Email Server` (或任意名称)
+### 2. 在支持 MCP 的客户端中配置
+
+#### 选项 A：Claude Desktop 配置文件模板
+如果你使用的是 Claude Desktop，请打开或创建配置文件（通常位于 `~/Library/Application Support/Claude/claude_desktop_config.json` 或 `%APPDATA%\Claude\claude_desktop_config.json`），添加以下内容：
+
+```json
+{
+  "mcpServers": {
+    "email-server": {
+      "command": "python3",
+      "args": [
+        "/此处替换为你的实际绝对路径/imap-smtp-mcp/server.py"
+      ]
+    }
+  }
+}
+```
+
+#### 选项 B：其他图形化客户端（如 Enchanté 等）
+在添加 MCP Server 的界面中填入：
+- **Name**: `Email Server` (或任意自定义名称)
 - **Command**: `python3`
-- **Args**: `[此处填写你的绝对路径]/server.py`
+- **Args**: `[此处填写 server.py 的绝对路径]`
 
 启动后，LLM 即可自动感知并调用上述四个工具进行收发邮件。
