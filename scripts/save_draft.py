@@ -67,7 +67,7 @@ if __name__ == "__main__":
     config_path = os.path.join(os.path.dirname(__file__), '..', 'config.json')
     username = None
     password = None
-    imap_server = "imap.qiye.163.com"
+    imap_server = None
 
     # 读取配置文件
     if os.path.exists(config_path):
@@ -76,11 +76,11 @@ if __name__ == "__main__":
                 config = json.load(f)
                 username = config.get("email_address")
                 password = config.get("auth_code")
-                imap_server = config.get("imap_server", imap_server)
+                imap_server = config.get("imap_server")
         except Exception as e:
             pass
 
-    if not username or not password or username == "your_email@your_company_domain.com":
+    if not username or not password or not imap_server or username == "your_email@example.com":
         print(json.dumps({
             "error": "未配置有效的邮箱账号或授权码。",
             "help": f"请检查 {os.path.abspath(config_path)} 配置是否正确。"

@@ -31,7 +31,7 @@ def get_config():
     username = config.get("email_address")
     password = config.get("auth_code")
     
-    if not username or not password or username == "your_email@your_company_domain.com":
+    if not username or not password or username == "your_email@example.com":
         raise Exception("未配置有效的邮箱账号或授权码，请检查 config.json")
         
     return config
@@ -94,7 +94,9 @@ def fetch_emails(limit: int = 5) -> str:
         config = get_config()
         username = config["email_address"]
         password = config["auth_code"]
-        imap_server = config.get("imap_server", "imap.qiye.163.com")
+        imap_server = config.get("imap_server")
+        if not imap_server:
+            return json.dumps({"error": "未配置 imap_server"}, ensure_ascii=False)
         folder = config.get("folder", "inbox")
 
         mail = imaplib.IMAP4_SSL(imap_server, 993)
@@ -151,7 +153,9 @@ def send_email(to_addrs: str, subject: str, body: str) -> str:
         config = get_config()
         username = config["email_address"]
         password = config["auth_code"]
-        smtp_server = config.get("smtp_server", "smtp.qiye.163.com")
+        smtp_server = config.get("smtp_server")
+        if not smtp_server:
+            return json.dumps({"error": "未配置 smtp_server"}, ensure_ascii=False)
 
         msg = MIMEMultipart()
         msg['From'] = username
@@ -185,7 +189,9 @@ def save_draft(subject: str, body: str, to_addrs: str = "") -> str:
         config = get_config()
         username = config["email_address"]
         password = config["auth_code"]
-        imap_server = config.get("imap_server", "imap.qiye.163.com")
+        imap_server = config.get("imap_server")
+        if not imap_server:
+            return json.dumps({"error": "未配置 imap_server"}, ensure_ascii=False)
 
         msg = MIMEMultipart()
         msg['From'] = username

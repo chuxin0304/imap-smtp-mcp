@@ -1,12 +1,12 @@
 ---
 name: fetch-126-email
-description: 获取和发送网易/126企业邮箱（或其他支持 IMAP/SMTP 的邮箱）的邮件，支持通过 IMAP 协议读取指定文件夹，以及通过 SMTP 发送邮件。配置文件保存在 config.json 中。
+description: 获取和发送支持 IMAP/SMTP 协议的邮箱邮件，支持通过 IMAP 协议读取指定文件夹，以及通过 SMTP 发送邮件。配置文件保存在 config.json 中。
 ---
 
 # 获取 126 / 网易企业邮箱邮件 (fetch-126-email)
 
 ## 技能说明
-本技能用于连接用户的网易企业邮箱（默认 `imap.qiye.163.com` / `smtp.qiye.163.com`）或其他邮箱：
+本技能用于连接用户的邮箱服务器并进行邮件管理（支持所有标准的 IMAP/SMTP 协议）：
 1. **获取邮件**：获取最新邮件列表，支持指定读取的邮件数量及文件夹名称。
 2. **发送邮件**：通过 SMTP 发送简单纯文本邮件。
 
@@ -16,15 +16,15 @@ description: 获取和发送网易/126企业邮箱（或其他支持 IMAP/SMTP �
 用户需要前往 `~/.agents/skills/fetch-126-email/config.json` 文件中，手动填入以下信息：
 ```json
 {
-  "email_address": "你的企业邮箱地址",
+  "email_address": "your_email@example.com",
   "auth_code": "你的IMAP授权码或客户端密码",
-  "imap_server": "imap.qiye.163.com",
-  "smtp_server": "smtp.qiye.163.com",
+  "imap_server": "imap.example.com",
+  "smtp_server": "smtp.example.com",
   "folder": "inbox"
 }
 ```
 **注意：** 
-* 如果你使用的是普通 126 邮箱，需要将 `imap_server` 改为 `"imap.126.com"`，将 `smtp_server` 改为 `"smtp.126.com"`。因为默认是为企业邮箱配置保留了 `"qiye.163.com"`。
+* `imap_server` 和 `smtp_server` **必填**，请填写你所使用邮箱服务商提供的服务器地址（如：163邮箱对应 `imap.163.com` / `smtp.163.com`，QQ邮箱对应 `imap.qq.com` / `smtp.qq.com`）。
 * `folder` 代表读取的目标文件夹，默认为 `"inbox"`（收件箱）。若要读取其他文件夹可在此修改（如：`"Sent"`，`"Drafts"` 等）。
 
 ## 使用说明
