@@ -1,0 +1,7 @@
+{
+  "email_address": "你的企业邮箱地址",
+  "auth_code": "你的IMAP授权码或客户端密码",
+  "imap_server": "imap.qiye.163.com",
+  "smtp_server": "smtp.qiye.163.com",
+  "folder": "inbox"
+}

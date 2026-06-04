@@ -1,0 +1,27 @@
+{
+  "meeting_request": {
+    "description": "会议邀请 / Requesting a meeting",
+    "subject": "Meeting Request: {topic}",
+    "body": "Hi {name},\n\nI hope this email finds you well.\n\nI would like to request a meeting to discuss {topic}. Would you be available sometime next week? Please let me know what days and times work best for you, or feel free to share your calendar.\n\nLooking forward to our discussion.\n\nBest regards,\n{sender_name}"
+  },
+  "follow_up": {
+    "description": "跟进事项 / Following up on a previous conversation",
+    "subject": "Following up: {topic}",
+    "body": "Hi {name},\n\nI hope you are having a great week.\n\nI am writing to follow up on {topic}. Could you please provide an update when you have a chance?\n\nLet me know if you need any further information from my side.\n\nBest regards,\n{sender_name}"
+  },
+  "status_update": {
+    "description": "项目进度更新 / Providing a project status update",
+    "subject": "Status Update: {project_name}",
+    "body": "Hi {name},\n\nHere is the latest status update on {project_name}.\n\nProgress:\n- {progress_1}\n- {progress_2}\n\nNext Steps:\n- {next_step_1}\n\nPlease let me know if you have any questions or need further details.\n\nBest regards,\n{sender_name}"
+  },
+  "thank_you": {
+    "description": "感谢信 / Thanking someone for their time or help",
+    "subject": "Thank You: {topic}",
+    "body": "Hi {name},\n\nThank you so much for your time and assistance with {topic}. I truly appreciate your help and insights.\n\nI will keep you updated on the progress and reach out if I have any further questions.\n\nBest regards,\n{sender_name}"
+  },
+  "introduction": {
+    "description": "自我介绍或介绍他人 / Introduction",
+    "subject": "Introduction: {sender_name} / {topic}",
+    "body": "Hi {name},\n\nI hope this email finds you well.\n\nMy name is {sender_name} and I am reaching out to introduce myself. I work on {topic/project} and would love to connect to explore potential synergies between our teams.\n\nWould you be open to a brief chat sometime next week?\n\nBest regards,\n{sender_name}"
+  }
+}
