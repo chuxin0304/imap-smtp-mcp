@@ -1,5 +1,4 @@
 # 忽略真实配置文件，防止密码/授权码泄露
-config.json
 
 # Python 缓存
 __pycache__/
@@ -9,4 +8,3 @@ __pycache__/
 env/
 venv/
 .venv/
-config.json

@@ -29,12 +29,23 @@ socket.setdefaulttimeout(15)
 
 mcp = FastMCP("Email Server")
 
-def get_config():
-    config_path = os.path.join(os.path.dirname(__file__), 'config.json')
-    if not os.path.exists(config_path):
-        raise FileNotFoundError("未找到配置文件 config.json。请在项目根目录下创建该文件并填入邮箱配置。")
-    with open(config_path, 'r', encoding='utf-8') as f:
-        return json.load(f)
+def get_env_config():
+    username = os.environ.get("EMAIL_USERNAME")
+    password = os.environ.get("EMAIL_PASSWORD")
+    imap_server = os.environ.get("IMAP_SERVER")
+    smtp_server = os.environ.get("SMTP_SERVER")
+    
+    if not all([username, password, imap_server, smtp_server]):
+        raise ValueError("缺少必要的环境变量配置。请确保在 MCP 客户端配置中设置了 EMAIL_USERNAME, EMAIL_PASSWORD, IMAP_SERVER 和 SMTP_SERVER。")
+        
+    return {
+        "username": username,
+        "password": password,
+        "imap_server": imap_server,
+        "smtp_server": smtp_server,
+        "imap_port": int(os.environ.get("IMAP_PORT", 993)),
+        "smtp_port": int(os.environ.get("SMTP_PORT", 465)),
+    }
 
 # -----------------
 # 辅助函数: 解码与解析
@@ -144,7 +155,7 @@ def list_emails(limit: int = 5, folder: str = "INBOX") -> str:
     - limit: 获取的邮件数量。
     """
     try:
-        cfg = get_config()
+        cfg = get_env_config()
         username = cfg['username']
         password = cfg['password']
         imap_server = cfg['imap_server']
@@ -206,7 +217,7 @@ def read_email(email_id: str, folder: str = "INBOX") -> str:
     根据 list_emails 提供的 email_id，读取该封邮件的完整正文内容。
     """
     try:
-        cfg = get_config()
+        cfg = get_env_config()
         username = cfg['username']
         password = cfg['password']
         imap_server = cfg['imap_server']
@@ -257,7 +268,7 @@ def send_email(to_addrs: str, subject: str, body: str) -> str:
     - to_addrs: 收件人邮箱，支持多个用逗号分隔。
     """
     try:
-        cfg = get_config()
+        cfg = get_env_config()
         username = cfg['username']
         password = cfg['password']
         smtp_server = cfg['smtp_server']
@@ -299,7 +310,7 @@ def save_draft(subject: str, body: str, to_addrs: str = "") -> str:
     将一封草稿邮件静默保存到邮箱的草稿箱文件夹中。
     """
     try:
-        cfg = get_config()
+        cfg = get_env_config()
         username = cfg['username']
         password = cfg['password']
         imap_server = cfg['imap_server']

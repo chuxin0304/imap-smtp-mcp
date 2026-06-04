@@ -9,7 +9,7 @@
 3. **`send_email`**: 通过 SMTP 发送简单纯文本邮件（自动适配 465/SSL 和 587/STARTTLS 端口）。
 4. **`save_draft`**: 通过 IMAP 保存邮件到草稿箱，内置常见中英文草稿箱文件夹的自动适配。
 
-*注：为了隐私与安全，账号配置信息将存储在本地的 `config.json` 中，LLM 仅需传入操作指令，无需知道你的邮箱密码。*
+*注：为了隐私与安全，账号配置信息通过 MCP 客户端的环境变量 (`env`) 注入，代码完全解耦且无状态，LLM 仅需调用极简的工具指令即可，无需接触密码。*
 
 ## 项目结构
 本仓库符合标准的 Python MCP 项目规范：
@@ -25,27 +25,12 @@ pip install -r requirements.txt
 pip install .
 ```
 
-### 2. 本地账号配置（必看 🌟）
+### 2. 在支持 MCP 的客户端中配置（通过环境变量传入账号配置）
 
-在项目根目录下创建一个名为 `config.json` 的文件，将你的邮箱配置填入其中（请注意不要将此文件提交到公开的 Git 仓库）。
-
-**👉 `config.json` 配置模板：**
-```json
-{
-  "username": "your_email@example.com",
-  "password": "your_app_password",
-  "imap_server": "imap.example.com",
-  "smtp_server": "smtp.example.com",
-  "imap_port": 993,
-  "smtp_port": 465
-}
-```
-*💡 安全建议：强烈推荐在各大邮箱提供商（如 QQ邮箱、网易邮箱、Gmail、Outlook 等）的账户设置中，生成并使用**第三方应用授权码**来代替你的主登录密码。*
-
-### 3. 在支持 MCP 的客户端中配置
+对于无状态的 MCP Server，使用 **环境变量 (Environment Variables)** 注入鉴权信息是最标准、最安全的做法。
 
 #### 选项 A：Claude Desktop 配置文件模板
-如果你使用的是 Claude Desktop，请打开或创建配置文件（通常位于 `~/Library/Application Support/Claude/claude_desktop_config.json` 或 `%APPDATA%\Claude\claude_desktop_config.json`），添加以下内容：
+请打开或创建配置文件（通常位于 `~/Library/Application Support/Claude/claude_desktop_config.json` 或 `%APPDATA%\Claude\claude_desktop_config.json`），添加以下内容（注意其中的 `env` 字段）：
 
 ```json
 {
@@ -54,20 +39,31 @@ pip install .
       "command": "python3",
       "args": [
         "/Users/你的用户名/Code/imap-smtp-mcp/server.py"
-      ]
+      ],
+      "env": {
+        "EMAIL_USERNAME": "your_email@qiye.163.com",
+        "EMAIL_PASSWORD": "your_client_auth_code",
+        "IMAP_SERVER": "imap.qiye.163.com",
+        "SMTP_SERVER": "smtp.qiye.163.com",
+        "IMAP_PORT": "993",
+        "SMTP_PORT": "465"
+      }
     }
   }
 }
 ```
-*(注：Windows 用户请使用如 `C:\\Code\\imap-smtp-mcp\\server.py` 的绝对路径。如果你使用了虚拟环境，也可将 `"command"` 修改为该虚拟环境内 `python` 执行文件的绝对路径。)*
+*(注：Windows 用户请使用绝对路径，如 `C:\\Code\\imap-smtp-mcp\\server.py`。强烈建议在各大邮箱提供商中生成并使用**第三方应用授权码**代替主密码。)*
 
 #### 选项 B：其他图形化客户端（如 Enchanté 等）
-在添加 MCP Server 的界面中填入：
-- **Name**: `Email Server` (或任意自定义名称)
-- **Command**: `python3` (或虚拟环境中 python 的绝对路径)
-- **Args**: `/Users/你的用户名/Code/imap-smtp-mcp/server.py`
+在添加 MCP Server 的配置界面中，除了填写路径，请务必找到 **Environment Variables / Env** 区域，并添加以下键值对：
+- `EMAIL_USERNAME`: your_email@qiye.163.com (你的网易企业邮箱账号)
+- `EMAIL_PASSWORD`: your_client_auth_code (客户端授权密码)
+- `IMAP_SERVER`: imap.qiye.163.com
+- `SMTP_SERVER`: smtp.qiye.163.com
+- `IMAP_PORT`: 993 *(选填，网易企业邮箱默认的 SSL/TLS 端口即为 993)*
+- `SMTP_PORT`: 465 *(选填，网易企业邮箱默认的 SSL/TLS 端口即为 465)*
 
-### 4. 运行与使用
-配置完成并在客户端加载该 MCP Server 后，你可以直接通过自然语言对 AI 助手说：
-> "帮我检查一下收件箱有没有新邮件"
-> "写一封邮件给 xxx@example.com，告诉他我明天开会，直接发送"
+### 3. 运行与使用
+配置完成并重启你的 MCP 客户端后，即可直接使用自然语言对 AI 助手下发指令，不需要告诉它任何密码或配置信息：
+> "帮我检查一下收件箱今天有没有重要的新邮件"
+> "请帮我起草一封给 xxx@example.com 的会议纪要并保存到草稿箱"
