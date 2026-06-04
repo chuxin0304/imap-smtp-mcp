@@ -17,24 +17,7 @@ except ImportError:
     print("错误: 缺少 mcp 依赖库。请先运行 'pip install mcp'")
     exit(1)
 
-mcp = FastMCP("126 Email Server")
-
-def get_config():
-    """读取配置文件"""
-    config_path = os.path.join(os.path.dirname(__file__), 'config.json')
-    if not os.path.exists(config_path):
-        raise Exception(f"配置文件不存在: {config_path}")
-        
-    with open(config_path, 'r', encoding='utf-8') as f:
-        config = json.load(f)
-        
-    username = config.get("email_address")
-    password = config.get("auth_code")
-    
-    if not username or not password or username == "your_email@example.com":
-        raise Exception("未配置有效的邮箱账号或授权码，请检查 config.json")
-        
-    return config
+mcp = FastMCP("Email Server")
 
 # -----------------
 # 辅助函数: 解码与解析
@@ -88,17 +71,9 @@ def get_email_body(msg):
 # 工具 1: Fetch Emails
 # -----------------
 @mcp.tool()
-def fetch_emails(limit: int = 5) -> str:
-    """获取企业邮箱收件箱里的最新邮件列表"""
+def fetch_emails(username: str, password: str, imap_server: str, limit: int = 5, folder: str = "inbox") -> str:
+    """获取邮箱文件夹里的最新邮件列表"""
     try:
-        config = get_config()
-        username = config["email_address"]
-        password = config["auth_code"]
-        imap_server = config.get("imap_server")
-        if not imap_server:
-            return json.dumps({"error": "未配置 imap_server"}, ensure_ascii=False)
-        folder = config.get("folder", "inbox")
-
         mail = imaplib.IMAP4_SSL(imap_server, 993)
         mail.login(username, password)
         mail.select(f'"{folder}"')
@@ -147,16 +122,9 @@ def fetch_emails(limit: int = 5) -> str:
 # 工具 2: Send Email
 # -----------------
 @mcp.tool()
-def send_email(to_addrs: str, subject: str, body: str) -> str:
+def send_email(username: str, password: str, smtp_server: str, to_addrs: str, subject: str, body: str) -> str:
     """通过企业邮箱发送一封纯文本邮件。参数 to_addrs 支持多个邮箱用逗号分隔。"""
     try:
-        config = get_config()
-        username = config["email_address"]
-        password = config["auth_code"]
-        smtp_server = config.get("smtp_server")
-        if not smtp_server:
-            return json.dumps({"error": "未配置 smtp_server"}, ensure_ascii=False)
-
         msg = MIMEMultipart()
         msg['From'] = username
         msg['To'] = to_addrs
@@ -183,16 +151,9 @@ def send_email(to_addrs: str, subject: str, body: str) -> str:
 # 工具 3: Save Draft
 # -----------------
 @mcp.tool()
-def save_draft(subject: str, body: str, to_addrs: str = "") -> str:
-    """将一封草稿邮件静默保存到企业邮箱的草稿箱文件夹中。"""
+def save_draft(username: str, password: str, imap_server: str, subject: str, body: str, to_addrs: str = "") -> str:
+    """将一封草稿邮件静默保存到邮箱的草稿箱文件夹中。"""
     try:
-        config = get_config()
-        username = config["email_address"]
-        password = config["auth_code"]
-        imap_server = config.get("imap_server")
-        if not imap_server:
-            return json.dumps({"error": "未配置 imap_server"}, ensure_ascii=False)
-
         msg = MIMEMultipart()
         msg['From'] = username
         if to_addrs:
@@ -207,7 +168,6 @@ def save_draft(subject: str, body: str, to_addrs: str = "") -> str:
         msg_bytes = msg.as_bytes()
         internal_date = imaplib.Time2Internaldate(time.time())
         
-        # 尝试英文和中文的草稿箱命名
         status, response = mail.append("Drafts", '(\\Draft)', internal_date, msg_bytes)
         if status != 'OK':
             status, response = mail.append("&g0l6P3ux-", '(\\Draft)', internal_date, msg_bytes)

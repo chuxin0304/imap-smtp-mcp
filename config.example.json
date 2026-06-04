@@ -1,7 +1,0 @@
-{
-  "email_address": "your_email@example.com",
-  "auth_code": "your_auth_code_here",
-  "imap_server": "imap.example.com",
-  "smtp_server": "smtp.example.com",
-  "folder": "inbox"
-}

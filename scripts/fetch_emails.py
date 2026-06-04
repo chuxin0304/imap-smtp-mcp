@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import os
+import argparse
 import imaplib
 import email
 from email.header import decode_header
@@ -107,45 +108,11 @@ def fetch_emails(username, password, imap_server="imap.qiye.163.com", limit=5, f
         print(json.dumps({"error": f"发生错误: {str(e)}"}, ensure_ascii=False))
 
 if __name__ == "__main__":
-    config_path = os.path.join(os.path.dirname(__file__), '..', 'config.json')
-    username = None
-    password = None
-    imap_server = None
-    limit = 5
-    folder = "inbox"
-
-    # Try to load from config.json first
-    if os.path.exists(config_path):
-        try:
-            with open(config_path, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-                username = config.get("email_address")
-                password = config.get("auth_code")
-                imap_server = config.get("imap_server")
-                folder = config.get("folder", folder)
-        except Exception as e:
-            pass
-
-    # Command line args can override or provide limit
-    if len(sys.argv) == 2:
-        try:
-            limit = int(sys.argv[1])
-        except ValueError:
-            pass
-    elif len(sys.argv) >= 3:
-        username = sys.argv[1]
-        password = sys.argv[2]
-        if len(sys.argv) > 3:
-            try:
-                limit = int(sys.argv[3])
-            except ValueError:
-                pass
-                
-    if not username or not password or not imap_server or username == "your_email@example.com" or password == "your_auth_code_here":
-        print(json.dumps({
-            "error": "未配置有效的邮箱账号或授权码。",
-            "help": f"请打开 {os.path.abspath(config_path)} 并填入正确的 email_address 和 auth_code。"
-        }, ensure_ascii=False))
-        sys.exit(1)
-        
-    fetch_emails(username, password, imap_server, limit, folder)
+    parser = argparse.ArgumentParser(description="获取邮件")
+    parser.add_argument('--username', required=True)
+    parser.add_argument('--password', required=True)
+    parser.add_argument('--imap_server', required=True)
+    parser.add_argument('--limit', type=int, default=5)
+    parser.add_argument('--folder', default="inbox")
+    args = parser.parse_args()
+    fetch_emails(args.username, args.password, args.imap_server, args.limit, args.folder)

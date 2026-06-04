@@ -58,33 +58,12 @@ def save_draft(username, password, imap_server, to_addrs, subject, body):
         sys.exit(1)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="保存邮件到网易/126企业邮箱草稿箱")
-    parser.add_argument('--to', required=False, default="", help="收件人邮箱地址（可选，可以只写正文不填收件人）")
-    parser.add_argument('--subject', required=True, help="邮件主题")
-    parser.add_argument('--body', required=True, help="邮件正文")
+    parser = argparse.ArgumentParser(description="保存草稿")
+    parser.add_argument('--username', required=True)
+    parser.add_argument('--password', required=True)
+    parser.add_argument('--imap_server', required=True)
+    parser.add_argument('--to', required=False, default="")
+    parser.add_argument('--subject', required=True)
+    parser.add_argument('--body', required=True)
     args = parser.parse_args()
-
-    config_path = os.path.join(os.path.dirname(__file__), '..', 'config.json')
-    username = None
-    password = None
-    imap_server = None
-
-    # 读取配置文件
-    if os.path.exists(config_path):
-        try:
-            with open(config_path, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-                username = config.get("email_address")
-                password = config.get("auth_code")
-                imap_server = config.get("imap_server")
-        except Exception as e:
-            pass
-
-    if not username or not password or not imap_server or username == "your_email@example.com":
-        print(json.dumps({
-            "error": "未配置有效的邮箱账号或授权码。",
-            "help": f"请检查 {os.path.abspath(config_path)} 配置是否正确。"
-        }, ensure_ascii=False))
-        sys.exit(1)
-        
-    save_draft(username, password, imap_server, args.to, args.subject, args.body)
+    save_draft(args.username, args.password, args.imap_server, args.to, args.subject, args.body)
